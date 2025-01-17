@@ -1260,7 +1260,13 @@ public:
   {
     return type_handler()->Item_send(this, protocol, buffer);
   }
-  virtual bool eq(const Item *, bool binary_cmp) const;
+  struct Eq_config
+  {
+    bool binary_cmp= false;        /**< Make binary comparison */
+    Eq_config() {}
+    Eq_config(bool binary_cmp) : binary_cmp(binary_cmp) {}
+  };
+  virtual bool eq(const Item *, Eq_config config) const;
   enum_field_types field_type() const
   {
     return type_handler()->field_type();
@@ -2862,11 +2868,11 @@ protected:
     return true;
   }
   bool excl_dep_on_grouping_fields(st_select_lex *sel);
-  bool eq(const Item_args *other, bool binary_cmp) const
+  bool eq(const Item_args *other, Item::Eq_config config) const
   {
     for (uint i= 0; i < arg_count ; i++)
     {
-      if (!args[i]->eq(other->args[i], binary_cmp))
+      if (!args[i]->eq(other->args[i], config))
         return false;
     }
     return true;
@@ -3086,7 +3092,7 @@ public:
                                             table, src, param,
                                             type() == Item::NULL_ITEM);
   }
-  bool eq(const Item *item, bool binary_cmp) const override;
+  bool eq(const Item *item, Eq_config config) const override;
   const Type_all_attributes *get_type_all_attributes_from_const() const
     override
   { return this; }
@@ -3674,7 +3680,7 @@ public:
   */
   Item_field(THD *thd, Field *field);
   Type type() const override { return FIELD_ITEM; }
-  bool eq(const Item *item, bool binary_cmp) const override;
+  bool eq(const Item *item, Eq_config config) const override;
   double val_real() override;
   longlong val_int() override;
   my_decimal *val_decimal(my_decimal *) override;
@@ -5809,10 +5815,10 @@ public:
   enum Type type() const override	{ return REF_ITEM; }
   enum Type real_type() const override
   { return ref ? (*ref)->type() : REF_ITEM; }
-  bool eq(const Item *item, bool binary_cmp) const override
+  bool eq(const Item *item, Eq_config config) const override
   {
     const Item *it= item->real_item();
-    return ref && (*ref)->eq(it, binary_cmp);
+    return ref && (*ref)->eq(it, config);
   }
   void save_val(Field *to) override;
   void save_result(Field *to) override;
@@ -6163,10 +6169,10 @@ public:
   { return orig_item->full_name_cstring(); }
   void make_send_field(THD *thd, Send_field *field) override
   { orig_item->make_send_field(thd, field); }
-  bool eq(const Item *item, bool binary_cmp) const override
+  bool eq(const Item *item, Eq_config config) const override
   {
     const Item *it= item->real_item();
-    return orig_item->eq(it, binary_cmp);
+    return orig_item->eq(it, config);
   }
   void fix_after_pullout(st_select_lex *new_parent, Item **refptr, bool merge)
     override
@@ -6275,7 +6281,7 @@ public:
   }
 
   bool fix_fields(THD *, Item **) override;
-  bool eq(const Item *item, bool binary_cmp) const override;
+  bool eq(const Item *item, Eq_config config) const override;
   Item *get_tmp_table_item(THD *thd) override
   {
     if (const_item())
@@ -6908,7 +6914,7 @@ public:
     m_share_field= false;
   }
   Type type() const override { return DEFAULT_VALUE_ITEM; }
-  bool eq(const Item *item, bool binary_cmp) const override;
+  bool eq(const Item *item, Eq_config config) const override;
   bool fix_fields(THD *, Item **) override;
   void cleanup() override;
   void print(String *str, enum_query_type query_type) override;
@@ -6999,7 +7005,7 @@ public:
   { }
   Type type() const override { return CONTEXTUALLY_TYPED_VALUE_ITEM; }
   bool vcol_assignment_allowed_value() const override { return true; }
-  bool eq(const Item *item, bool binary_cmp) const override { return false; }
+  bool eq(const Item *item, Eq_config config) const override { return false; }
   bool is_evaluable_expression() const override { return false; }
   Field *create_tmp_field_ex(MEM_ROOT *,
                              TABLE *, Tmp_field_src *,
@@ -7131,7 +7137,7 @@ public:
   Item_insert_value(THD *thd, Name_resolution_context *context_arg, Item *a)
     :Item_field(thd, context_arg),
      arg(a) {}
-  bool eq(const Item *item, bool binary_cmp) const override;
+  bool eq(const Item *item, Eq_config config) const override;
   bool fix_fields(THD *, Item **) override;
   void print(String *str, enum_query_type query_type) override;
   int save_in_field(Field *field_arg, bool no_conversions) override
@@ -7223,7 +7229,7 @@ Item_trigger_field(THD *thd, Name_resolution_context *context_arg,
   }
   void setup_field(THD *thd, TABLE *table, GRANT_INFO *table_grant_info);
   Type type() const override { return TRIGGER_FIELD_ITEM; }
-  bool eq(const Item *item, bool binary_cmp) const override;
+  bool eq(const Item *item, Eq_config config) const override;
   bool fix_fields(THD *, Item **) override;
   void print(String *str, enum_query_type query_type) override;
   table_map used_tables() const override { return (table_map)0L; }
@@ -7352,7 +7358,7 @@ public:
   {
     return cached_field ? cached_field->eq_def (field) : FALSE;
   }
-  bool eq(const Item *item, bool binary_cmp) const override
+  bool eq(const Item *item, Eq_config config) const override
   {
     return this == item;
   }
@@ -8116,10 +8122,10 @@ public:
   { return m_item->full_name_cstring(); }
   void make_send_field(THD *thd, Send_field *field) override
   { m_item->make_send_field(thd, field); }
-  bool eq(const Item *item, bool binary_cmp) const override
+  bool eq(const Item *item, Eq_config config) const override
   {
     const Item *it= item->real_item();
-    return m_item->eq(it, binary_cmp);
+    return m_item->eq(it, config);
   }
   void fix_after_pullout(st_select_lex *new_parent, Item **refptr, bool merge) override
   { m_item->fix_after_pullout(new_parent, &m_item, merge); }

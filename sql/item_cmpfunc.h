@@ -1002,7 +1002,7 @@ public:
     negated= !negated;
     return this;
   }
-  bool eq(const Item *item, bool binary_cmp) const override;
+  bool eq(const Item *item, Eq_config config) const override;
   CHARSET_INFO *compare_collation() const override
   {
     return cmp_collation.collation;
