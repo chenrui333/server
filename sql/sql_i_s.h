@@ -142,8 +142,10 @@ class Varchar: public Type
 public:
   Varchar(uint length) :Type(&type_handler_varchar, length, false)
   {
+    // utf8mb3 Varchars longer than MAX_FIELD_VARCHARLENGTH/3 become Longtexts
     DBUG_ASSERT(length * 3 <= MAX_FIELD_VARCHARLENGTH);
   }
+  Varchar(): Type(&type_handler_varchar, MAX_FIELD_VARCHARLENGTH/3, false) {}
 };
 
 
