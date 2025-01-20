@@ -11116,7 +11116,10 @@ alter_stats_norebuild(
 	DBUG_ENTER("alter_stats_norebuild");
 	DBUG_ASSERT(!ctx->need_rebuild());
 
-	if (!ctx->new_table->stats_is_persistent()) {
+	auto stat = ctx->new_table->stat;
+
+	if (!dict_table_t::stat_initialized(stat)
+	    || !dict_table_t::stats_is_persistent(stat)) {
 		DBUG_VOID_RETURN;
 	}
 
@@ -11125,7 +11128,6 @@ alter_stats_norebuild(
 		DBUG_ASSERT(index->table == ctx->new_table);
 
 		if (!(index->type & DICT_FTS)) {
-			dict_stats_init(ctx->new_table);
 			dict_stats_update_for_index(index);
 		}
 	}
@@ -11150,11 +11152,15 @@ alter_stats_rebuild(
 {
 	DBUG_ENTER("alter_stats_rebuild");
 
-	if (!table->space || !table->stats_is_persistent()) {
+	if (!table->space || !table->stats_is_persistent()
+	    || dict_stats_persistent_storage_check(false) != SCHEMA_OK) {
 		DBUG_VOID_RETURN;
 	}
 
-	dberr_t	ret = dict_stats_update(table, DICT_STATS_RECALC_PERSISTENT);
+	dberr_t	ret = dict_stats_update_persistent(table);
+	if (ret == DB_SUCCESS) {
+		ret = dict_stats_save(table);
+	}
 
 	if (ret != DB_SUCCESS) {
 		push_warning_printf(
@@ -11536,12 +11542,10 @@ err_index:
 	}
 	if (error != DB_SUCCESS) {
 		if (table_stats) {
-			dict_table_close(table_stats, false, m_user_thd,
-					 mdl_table);
+			dict_table_close(table_stats, m_user_thd, mdl_table);
 		}
 		if (index_stats) {
-			dict_table_close(index_stats, false, m_user_thd,
-					 mdl_index);
+			dict_table_close(index_stats, m_user_thd, mdl_index);
 		}
 		my_error_innodb(error, table_share->table_name.str, 0);
 		if (fts_exist) {
@@ -11577,11 +11581,11 @@ fail:
 			trx->rollback();
 			ut_ad(!trx->fts_trx);
 			if (table_stats) {
-				dict_table_close(table_stats, true, m_user_thd,
+				dict_table_close(table_stats, m_user_thd,
 						 mdl_table);
 			}
 			if (index_stats) {
-				dict_table_close(index_stats, true, m_user_thd,
+				dict_table_close(index_stats, m_user_thd,
 						 mdl_index);
 			}
 			row_mysql_unlock_data_dictionary(trx);
@@ -11635,10 +11639,10 @@ fail:
 	}
 
 	if (table_stats) {
-		dict_table_close(table_stats, true, m_user_thd, mdl_table);
+		dict_table_close(table_stats, m_user_thd, mdl_table);
 	}
 	if (index_stats) {
-		dict_table_close(index_stats, true, m_user_thd, mdl_index);
+		dict_table_close(index_stats, m_user_thd, mdl_index);
 	}
 
 	/* Commit or roll back the changes to the data dictionary. */

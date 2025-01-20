@@ -101,6 +101,13 @@ public:
 
 	int open(const char *name, int mode, uint test_if_locked) override;
 
+	/** Fetch or recalculate InnoDB table statistics */
+	dberr_t statistics_init(dict_table_t *table, bool recalc);
+
+	/** Register InnoDB_share(table) so that statistics will be
+	deinitialized on the last close() */
+	void innodb_share_register(dict_table_t &table) noexcept;
+
 	handler* clone(const char *name, MEM_ROOT *mem_root) override;
 
 	int close(void) override;
