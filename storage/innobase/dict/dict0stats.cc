@@ -661,11 +661,7 @@ dict_stats_assert_initialized(
 	MEM_CHECK_DEFINED(&table->stats_last_recalc,
 			  sizeof table->stats_last_recalc);
 
-	MEM_CHECK_DEFINED(&table->stat_persistent,
-			  sizeof table->stat_persistent);
-
-	MEM_CHECK_DEFINED(&table->stats_auto_recalc,
-			  sizeof table->stats_auto_recalc);
+	MEM_CHECK_DEFINED(&table->stat, sizeof table->stat);
 
 	MEM_CHECK_DEFINED(&table->stats_sample_pages,
 			  sizeof table->stats_sample_pages);
