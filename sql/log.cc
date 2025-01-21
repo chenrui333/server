@@ -5390,13 +5390,6 @@ int MYSQL_BIN_LOG::new_file_impl()
     DBUG_RETURN(error);
   }
 
-  if (log_file.error)
-  {
-    my_error(ER_SLAVE_RELAY_LOG_WRITE_FAILURE, MYF(ME_ERROR_LOG),
-             "Writing to the relay log prevented by an earlier error");
-    DBUG_RETURN(1);
-  }
-
   mysql_mutex_lock(&LOCK_index);
 
   /* Reuse old name if not binlog and not update log */
