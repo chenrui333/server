@@ -10628,7 +10628,7 @@ ST_FIELD_INFO slave_status_info[]=
   Column("Master_Host", Varchar(HOSTNAME_LENGTH), NULLABLE),
   Column("Master_User", Varchar(USERNAME_LENGTH), NULLABLE),
   Column("Master_Port", Type(&type_handler_ushort, 5, true), NOT_NULL),
-  Column("Connect_Retry", SLong(10), NOT_NULL),
+  Column("Connect_Retry", ULong(10), NOT_NULL),
   Column("Master_Log_File", Varchar(FN_REFLEN), NOT_NULL),
   Column("Read_Master_Log_Pos", ULonglong(20), NOT_NULL),
   Column("Relay_Log_File", Varchar(FN_REFLEN), NOT_NULL),
@@ -10642,7 +10642,7 @@ ST_FIELD_INFO slave_status_info[]=
   Column("Replicate_Ignore_Table", Varchar(), NOT_NULL),
   Column("Replicate_Wild_Do_Table", Varchar(), NOT_NULL),
   Column("Replicate_Wild_Ignore_Table", Varchar(), NOT_NULL),
-  Column("Last_Errno", SLong(4), NOT_NULL),
+  Column("Last_Errno", ULong(4), NOT_NULL),
   Column("Last_Error", Varchar(MAX_SLAVE_ERRMSG), NULLABLE),
   Column("Skip_Counter", ULong(10), NOT_NULL),
   Column("Exec_Master_Log_Pos", ULonglong(20), NOT_NULL),
@@ -10658,9 +10658,9 @@ ST_FIELD_INFO slave_status_info[]=
   Column("Master_SSL_Key", Varchar(FN_REFLEN), NULLABLE),
   Column("Seconds_Behind_Master", ULonglong(20), NULLABLE),
   Column("Master_SSL_Verify_Server_Cert", Varchar(sizeof("Yes")-1), NOT_NULL),
-  Column("Last_IO_Errno", SLong(4), NOT_NULL),
+  Column("Last_IO_Errno", ULong(4), NOT_NULL),
   Column("Last_IO_Error", Varchar(MAX_SLAVE_ERRMSG), NULLABLE),
-  Column("Last_SQL_Errno", SLong(4), NOT_NULL),
+  Column("Last_SQL_Errno", ULong(4), NOT_NULL),
   Column("Last_SQL_Error", Varchar(MAX_SLAVE_ERRMSG), NULLABLE),
   Column("Replicate_Ignore_Server_Ids", Varchar(), NOT_NULL),
   Column("Master_Server_Id", ULong(10), NOT_NULL),
@@ -10686,7 +10686,7 @@ ST_FIELD_INFO slave_status_info[]=
   Column("Gtid_Slave_Pos", Varchar(), NOT_NULL),
   Column("Master_last_event_time", Datetime(0), NULLABLE),
   Column("Slave_last_event_time", Datetime(0), NULLABLE),
-  Column("Master_Slave_time_diff", SLong(10), NULLABLE),
+  Column("Master_Slave_time_diff", ULong(10), NULLABLE),
   CEnd()
 };
 #endif
