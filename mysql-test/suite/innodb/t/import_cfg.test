@@ -1,0 +1,88 @@
+--source include/have_innodb.inc
+--source include/maybe_debug.inc
+
+--let $datadir= `select @@datadir`
+
+--echo #
+--echo #  MDEV-35169 ALTER TABLE...IMPORT TABLESPACE does not
+--echo #		work with INDEX DESC
+--echo #
+create table t1 (pk int primary key, a int, key(a desc)) engine=InnoDB;
+insert into t1 values (1,10),(2,20),(3,15);
+flush table t1 for export;
+--copy_file $datadir/test/t1.ibd $datadir/test/t1.ibd.desc
+--copy_file $datadir/test/t1.cfg $datadir/test/t1.cfg.desc
+unlock tables;
+drop table t1;
+
+create table t1 (pk int primary key, a int, key(a asc)) engine=InnoDB;
+insert into t1 values (1,10),(2,20),(3,15);
+flush table t1 for export;
+--copy_file $datadir/test/t1.ibd $datadir/test/t1.ibd.asc
+--copy_file $datadir/test/t1.cfg $datadir/test/t1.cfg.asc
+unlock tables;
+drop table t1;
+
+--echo # Import desc tablespace into desc frm
+create table t1 (pk int primary key, a int, key(a desc)) engine=InnoDB;
+alter table t1 discard tablespace;
+--copy_file $datadir/test/t1.ibd.desc $datadir/test/t1.ibd
+--copy_file $datadir/test/t1.cfg.desc $datadir/test/t1.cfg
+alter table t1 import tablespace;
+check table t1 extended;
+drop table t1;
+
+--echo # Import asc tablespace into desc frm
+create table t1 (pk int primary key, a int, key(a desc)) engine=InnoDB;
+alter table t1 discard tablespace;
+--copy_file $datadir/test/t1.ibd.asc $datadir/test/t1.ibd
+--copy_file $datadir/test/t1.cfg.asc $datadir/test/t1.cfg
+--error ER_TABLE_SCHEMA_MISMATCH
+alter table t1 import tablespace;
+check table t1 extended;
+drop table t1;
+
+--echo # Import desc tablespace into asc frm
+create table t1 (pk int primary key, a int, key(a asc)) engine=InnoDB;
+alter table t1 discard tablespace;
+--copy_file $datadir/test/t1.ibd.desc $datadir/test/t1.ibd
+--copy_file $datadir/test/t1.cfg.desc $datadir/test/t1.cfg
+--error ER_TABLE_SCHEMA_MISMATCH
+alter table t1 import tablespace;
+check table t1 extended;
+drop table t1;
+
+--echo # Import asc tablespace into asc frm
+create table t1 (pk int primary key, a int, key(a asc)) engine=InnoDB;
+alter table t1 discard tablespace;
+--copy_file $datadir/test/t1.ibd.asc $datadir/test/t1.ibd
+--copy_file $datadir/test/t1.cfg.asc $datadir/test/t1.cfg
+alter table t1 import tablespace;
+check table t1 extended;
+drop table t1;
+
+--echo # Try to import the older version of cfg file
+create table t1 (pk int primary key, a int, key(a)) engine=InnoDB;
+create table t2 (pk int primary key, a int, key(a)) engine=InnoDB;
+alter table t2 discard tablespace;
+insert into t1 values (1,10),(2,20),(3,15);
+if ($have_debug) {
+--disable_query_log
+  set DEBUG_DBUG="+d,use_cfg_version_1";
+--enable_query_log
+}
+
+flush table t1 for export;
+--copy_file $datadir/test/t1.ibd $datadir/test/t2.ibd
+--copy_file $datadir/test/t1.cfg $datadir/test/t2.cfg
+if ($have_debug) {
+--disable_query_log
+  set DEBUG_DBUG="-d,use_cfg_version_1";
+--enable_query_log
+}
+unlock tables;
+drop table t1;
+
+alter table t2 import tablespace;
+check table t2 extended;
+drop table t2;

@@ -280,6 +280,8 @@ struct row_import {
 
 	bool		m_missing;		/*!< true if a .cfg file was
 						found and was readable */
+	uint32_t 	m_version;		/*!< Version of the
+						cfg file */
 };
 
 struct fil_iterator_t {
@@ -1211,6 +1213,21 @@ row_import::match_index_columns(
 				field->fixed_len,
 				cfg_field->fixed_len);
 
+			err = DB_ERROR;
+		}
+
+		if (cfg_field->descending != field->descending) {
+			ib_errf(thd, IB_LOG_LEVEL_ERROR,
+				ER_TABLE_SCHEMA_MISMATCH,
+				"Index %s field %s is %s which does "
+				"not match metdata file which is %s",
+				index->name(), field->name(),
+				field->descending
+				  ? "descending"
+				  : "ascending",
+				cfg_field->descending
+				  ? "descending"
+				  : "ascending");
 			err = DB_ERROR;
 		}
 	}
@@ -2515,7 +2532,8 @@ row_import_cfg_read_index_fields(
 /*=============================*/
 	FILE*			file,	/*!< in: file to write to */
 	THD*			thd,	/*!< in/out: session */
-	row_index_t*		index)	/*!< Index being read in */
+	row_index_t*		index,	/*!< Index being read in */
+	uint32_t		version)/*!< .cfg version */
 {
 	byte			row[sizeof(ib_uint32_t) * 3];
 	ulint			n_fields = index->m_n_fields;
@@ -2543,7 +2561,6 @@ row_import_cfg_read_index_fields(
 				(void) fseek(file, 0L, SEEK_END););
 
 		if (fread(row, 1, sizeof(row), file) != sizeof(row)) {
-
 			ib_senderrf(
 				thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR,
 				(ulong) errno, strerror(errno),
@@ -2562,6 +2579,11 @@ row_import_cfg_read_index_fields(
 
 		/* Include the NUL byte in the length. */
 		ulint	len = mach_read_from_4(ptr);
+
+		if (version == IB_EXPORT_CFG_VERSION_V2 && len >> 31) {
+			field->descending= true;
+			len &= ~(1U << 31);
+		}
 
 		byte*	name = UT_NEW_ARRAY_NOKEY(byte, len);
 
@@ -2735,7 +2757,8 @@ row_import_read_index_data(
 			return(err);
 		}
 
-		err = row_import_cfg_read_index_fields(file, thd, cfg_index);
+		err = row_import_cfg_read_index_fields(file, thd, cfg_index,
+						       cfg->m_version);
 
 		if (err != DB_SUCCESS) {
 			return(err);
@@ -2929,16 +2952,15 @@ row_import_read_columns(
 	return(DB_SUCCESS);
 }
 
-/*****************************************************************//**
-Read the contents of the <tablespace>.cfg file.
+/** Read the contents of the <tablespace>.cfg file.
+@param file File to read from
+@param thd  session thread
+@param cfg  metadata information
+@param version config file version
 @return DB_SUCCESS or error code. */
 static	MY_ATTRIBUTE((nonnull, warn_unused_result))
-dberr_t
-row_import_read_v1(
-/*===============*/
-	FILE*		file,		/*!< in: File to read from */
-	THD*		thd,		/*!< in: session */
-	row_import*	cfg)		/*!< out: meta data */
+dberr_t row_import_read_version_1_and_2(FILE *file, THD *thd,
+                                        row_import *cfg)
 {
 	byte		value[sizeof(ib_uint32_t)];
 
@@ -3128,9 +3150,11 @@ row_import_read_meta_data(
 	}
 
 	/* Check the version number. */
-	switch (mach_read_from_4(row)) {
+	cfg.m_version = mach_read_from_4(row);
+	switch (cfg.m_version) {
 	case IB_EXPORT_CFG_VERSION_V1:
-		return(row_import_read_v1(file, thd, &cfg));
+	case IB_EXPORT_CFG_VERSION_V2:
+		return row_import_read_version_1_and_2(file, thd, &cfg);
 	default:
 		ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_NOT_SUPPORTED_YET,
 			    "meta-data version");

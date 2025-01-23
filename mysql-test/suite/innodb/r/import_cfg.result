@@ -1,0 +1,63 @@
+#
+#  MDEV-35169 ALTER TABLE...IMPORT TABLESPACE does not
+#		work with INDEX DESC
+#
+create table t1 (pk int primary key, a int, key(a desc)) engine=InnoDB;
+insert into t1 values (1,10),(2,20),(3,15);
+flush table t1 for export;
+unlock tables;
+drop table t1;
+create table t1 (pk int primary key, a int, key(a asc)) engine=InnoDB;
+insert into t1 values (1,10),(2,20),(3,15);
+flush table t1 for export;
+unlock tables;
+drop table t1;
+# Import desc tablespace into desc frm
+create table t1 (pk int primary key, a int, key(a desc)) engine=InnoDB;
+alter table t1 discard tablespace;
+alter table t1 import tablespace;
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+drop table t1;
+# Import asc tablespace into desc frm
+create table t1 (pk int primary key, a int, key(a desc)) engine=InnoDB;
+alter table t1 discard tablespace;
+alter table t1 import tablespace;
+ERROR HY000: Schema mismatch (Index a field a is descending which does not match metdata file which is ascending)
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+test.t1	check	Error	Tablespace has been discarded for table `t1`
+test.t1	check	error	Corrupt
+drop table t1;
+# Import desc tablespace into asc frm
+create table t1 (pk int primary key, a int, key(a asc)) engine=InnoDB;
+alter table t1 discard tablespace;
+alter table t1 import tablespace;
+ERROR HY000: Schema mismatch (Index a field a is ascending which does not match metdata file which is descending)
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+test.t1	check	Error	Tablespace has been discarded for table `t1`
+test.t1	check	error	Corrupt
+drop table t1;
+# Import asc tablespace into asc frm
+create table t1 (pk int primary key, a int, key(a asc)) engine=InnoDB;
+alter table t1 discard tablespace;
+alter table t1 import tablespace;
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+drop table t1;
+# Try to import the older version of cfg file
+create table t1 (pk int primary key, a int, key(a)) engine=InnoDB;
+create table t2 (pk int primary key, a int, key(a)) engine=InnoDB;
+alter table t2 discard tablespace;
+insert into t1 values (1,10),(2,20),(3,15);
+flush table t1 for export;
+unlock tables;
+drop table t1;
+alter table t2 import tablespace;
+check table t2 extended;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+drop table t2;

@@ -35,6 +35,10 @@ struct trx_t;
 /** The version number of the export meta-data text file. */
 #define IB_EXPORT_CFG_VERSION_V1	0x1UL
 
+/** The version number has the ascending bool information for all
+index fields */
+constexpr uint32_t IB_EXPORT_CFG_VERSION_V2 = 0x2UL;
+
 /*********************************************************************//**
 Quiesce the tablespace that the table resides in. */
 void

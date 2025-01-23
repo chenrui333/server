@@ -47,7 +47,7 @@ row_quiesce_write_index_fields(
 	FILE*			file,	/*!< in: file to write to */
 	THD*			thd)	/*!< in/out: session */
 {
-	byte			row[sizeof(ib_uint32_t) * 2];
+	byte			row[sizeof(ib_uint32_t) * 3];
 
 	for (ulint i = 0; i < index->n_fields; ++i) {
 		byte*			ptr = row;
@@ -57,30 +57,40 @@ row_quiesce_write_index_fields(
 		ptr += sizeof(ib_uint32_t);
 
 		mach_write_to_4(ptr, field->fixed_len);
-
-		DBUG_EXECUTE_IF("ib_export_io_write_failure_9",
-				close(fileno(file)););
-
-		if (fwrite(row, 1, sizeof(row), file) != sizeof(row)) {
-
-			ib_senderrf(
-				thd, IB_LOG_LEVEL_WARN, ER_IO_WRITE_ERROR,
-				(ulong) errno, strerror(errno),
-				"while writing index fields.");
-
-			return(DB_IO_ERROR);
-		}
+		ptr += sizeof(ib_uint32_t);
 
 		const char* field_name = field->name ? field->name : "";
 		/* Include the NUL byte in the length. */
-		ib_uint32_t	len = static_cast<ib_uint32_t>(strlen(field_name) + 1);
-		mach_write_to_4(row, len);
+		ib_uint32_t	name_len =
+		  static_cast<ib_uint32_t>(strlen(field_name) + 1);
+
+		ib_uint32_t	len = name_len;
+
+		/* Maximum field name should be OS_FILE_MAX_PATH.
+		so we can store the field descending information
+		in 31st bit of the field length */
+		if (field->descending) {
+			len |= 1 << 31;
+		}
+
+		if (name_len > OS_FILE_MAX_PATH) {
+			ib_errf(thd, IB_LOG_LEVEL_ERROR,
+				ER_INNODB_INDEX_CORRUPT,
+				"Index name length (" UINT32PF ") is too "
+				"long, the meta-data is corrupt",
+				name_len);
+
+			return(DB_CORRUPTION);
+		}
+
+		mach_write_to_4(ptr, len);
+		ptr += sizeof(ib_uint32_t);
 
 		DBUG_EXECUTE_IF("ib_export_io_write_failure_10",
 				close(fileno(file)););
 
-		if (fwrite(row, 1,  sizeof(len), file) != sizeof(len)
-		    || fwrite(field_name, 1, len, file) != len) {
+		if (fwrite(row, 1, sizeof(row), file) != sizeof(row)
+		    || fwrite(field_name, 1, name_len, file) != name_len) {
 
 			ib_senderrf(
 				thd, IB_LOG_LEVEL_WARN, ER_IO_WRITE_ERROR,
@@ -322,7 +332,10 @@ row_quiesce_write_header(
 	byte			value[sizeof(ib_uint32_t)];
 
 	/* Write the meta-data version number. */
-	mach_write_to_4(value, IB_EXPORT_CFG_VERSION_V1);
+	mach_write_to_4(value, IB_EXPORT_CFG_VERSION_V2);
+
+	DBUG_EXECUTE_IF("use_cfg_version_1",
+			mach_write_to_4(value, IB_EXPORT_CFG_VERSION_V1););
 
 	DBUG_EXECUTE_IF("ib_export_io_write_failure_4", close(fileno(file)););
 
